@@ -1,0 +1,1 @@
+<nav class="locs" aria-label="Local">{% for n, letra in [(1,'A'),(2,'B'),(3,'C')] %}<a href="?l={{ n }}{% if request.query_params.get('embebido') %}&embebido=1{% endif %}" class="{{ 'on' if local_id == n }}" title="Ver el Local {{ letra }}">Local {{ letra }}</a>{% endfor %}</nav>

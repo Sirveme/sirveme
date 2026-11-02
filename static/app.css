@@ -1,0 +1,114 @@
+/* Demo Metraes · sistema de diseño "Excel Perú Sistemas Pro": verde oscuro, bordes verde Excel, esquinas rectas. */
+:root{
+  color-scheme: dark;
+  --bg:#0A1410; --cel:#0f1d17; --cel-2:#13261d; --cel-3:#183126;
+  --borde:#217346; --borde-suave:#1d4a33;
+  --fg:#dfe9e3; --muted:#8fa89a; --hd:#217346; --hd-fg:#eef6f1;
+  --ok:#2ECC71; --oro:#F4B400; --rojo:#D42020; --rojo-txt:#ff7f73; --info:#7fb3ff;
+  --f-body:"IBM Plex Sans","Segoe UI",Calibri,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:13.5px;line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+body::after{content:"METRAES";position:fixed;right:-40px;bottom:30%;font:700 120px/1 var(--f-body);letter-spacing:.1em;
+  color:rgba(33,115,70,.028);transform:rotate(-90deg);pointer-events:none;z-index:0;animation:agua 40s linear infinite alternate}
+@keyframes agua{from{bottom:20%}to{bottom:45%}}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+h1{font-size:17px} h2{font-size:15px} h3{font-size:14px}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+
+/* barra superior */
+.top{position:sticky;top:0;z-index:20;background:var(--cel);border-bottom:2px solid var(--borde);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top .marca{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.top .marca small{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--oro)}
+.top .der{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.locs{display:flex}
+.locs a{border:1px solid var(--borde);margin-left:-1px;padding:4px 10px;color:var(--muted);text-decoration:none;font-weight:600;font-size:12.5px}
+.locs a.on{background:var(--hd);color:var(--hd-fg)}
+.vivo{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.vivo i{width:9px;height:9px;background:var(--rojo)}
+.vivo.on i{background:var(--ok);animation:late 2s infinite}
+@keyframes late{50%{opacity:.35}}
+.volver{color:var(--muted);text-decoration:none;font-size:12.5px;border:1px solid var(--borde-suave);padding:3px 8px}
+.contexto{position:relative;z-index:1;margin:0;padding:6px max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px));
+  font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--borde-suave);background:var(--cel-2)}
+.contexto b{color:var(--fg);font-weight:600}
+
+main{position:relative;z-index:1;padding-block:14px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px;max-width:1280px;margin:0 auto}
+
+/* botones con relieve (se ven presionables) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--borde);border-right-width:2px;border-bottom-width:3px;
+  background:var(--cel-3);padding:7px 12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:#1e3b2e;color:var(--ok)}
+.btn:active{transform:translateY(2px);border-bottom-width:1px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.locs a:focus-visible{outline:2px solid var(--oro);outline-offset:1px}
+.btn.pri{background:#1f7a49;border-color:#2ECC71;color:#f2fbf5}
+.btn.pri:hover{background:#238a53;color:#fff8e5}
+.btn.oro{border-color:var(--oro);color:var(--oro)}
+.btn.peligro{border-color:#7a2a24;color:var(--rojo-txt)}
+.btn.chico{padding:4px 8px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+input,select{background:var(--bg);border:1px solid var(--borde);padding:7px 9px;width:100%;min-width:0}
+label.campo{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.seg{display:flex;flex-wrap:wrap}
+.seg button{border:1px solid var(--borde);margin-left:-1px;background:transparent;padding:6px 12px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--hd);color:var(--hd-fg)}
+
+/* celdas tipo Excel */
+.hoja{border:1px solid var(--borde);background:var(--cel)}
+.hoja>.cab{background:var(--hd);color:var(--hd-fg);padding:5px 10px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hoja>.cuerpo{padding:10px}
+.tabla{overflow-x:auto;border:1px solid var(--borde)}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid var(--borde-suave);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--hd);color:var(--hd-fg);font-weight:600;border-color:#2b8a57;white-space:nowrap}
+td.r,th.r{text-align:right}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+.etq{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+
+/* chips de estado */
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border:1px solid;white-space:nowrap}
+.chip.verde{color:var(--ok);border-color:#1f7a49;background:rgba(46,204,113,.08)}
+.chip.oro{color:var(--oro);border-color:#8a6a10;background:rgba(244,180,0,.08)}
+.chip.rojo{color:var(--rojo-txt);border-color:#7a2a24;background:rgba(212,32,32,.1)}
+.chip.gris{color:var(--muted);border-color:var(--borde-suave)}
+.chip.azul{color:var(--info);border-color:#2f4f7a;background:rgba(127,179,255,.08)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));border-left:1px solid var(--borde);border-top:1px solid var(--borde)}
+.kpi{border-right:1px solid var(--borde);border-bottom:1px solid var(--borde);padding:8px 10px;background:var(--cel);display:flex;flex-direction:column;gap:2px}
+.kpi b{font-family:var(--f-mono);font-size:19px;font-weight:600;align-self:flex-start;padding:0 3px;margin-left:-3px}
+
+/* destellos */
+@keyframes sube{0%{background:rgba(46,204,113,.45)}100%{background:transparent}}
+@keyframes baja{0%{background:rgba(212,32,32,.45)}100%{background:transparent}}
+.f-sube{animation:sube 1.8s ease-out}
+.f-baja{animation:baja 1.8s ease-out}
+
+/* avisos */
+#avisos{position:fixed;z-index:50;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:6px;width:min(380px,calc(100vw - 24px))}
+.aviso{background:var(--cel-3);border:1px solid var(--borde);border-left:4px solid var(--ok);padding:8px 10px;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);animation:entra .25s ease-out}
+.aviso.oro{border-left-color:var(--oro)} .aviso.rojo{border-left-color:var(--rojo)} .aviso.azul{border-left-color:var(--info)}
+@keyframes entra{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.vacio{color:var(--muted);font-size:13px;padding:10px;text-align:center;border:1px dashed var(--borde-suave)}
+
+/* hojas-pestañas abajo (patrón libro de Excel) */
+.libro{position:fixed;left:0;right:0;bottom:0;z-index:25;display:flex;overflow-x:auto;background:var(--cel);border-top:2px solid var(--borde);
+  padding:0 max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px))}
+.libro button{flex:none;border:1px solid var(--borde-suave);border-top:none;margin-left:-1px;background:transparent;color:var(--muted);
+  padding:8px 14px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px}
+.libro button.on{background:var(--bg);color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
+.con-libro main{padding-bottom:70px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

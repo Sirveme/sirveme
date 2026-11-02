@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block titulo %}Contador · Metraes{% endblock %}
+{% block rol %}Herramientas del contador{% endblock %}
+{% block clase %}con-libro{% endblock %}
+{% block acciones %}<a class="volver" href="/duenos{% if request.query_params.get('embebido') %}?embebido=1{% endif %}">Panel dueños</a>{% endblock %}
+{% block contexto %}<b>Lo que el contador revisa cada mes, al día y en un solo lugar.</b> Los comprobantes salen de las ventas reales de la demo; SIRE y buzones son una vista de ejemplo de cómo se verían conectados.{% endblock %}
+{% block estilos %}
+<style>
+  .filtros{display:flex;gap:6px;flex-wrap:wrap}
+  .filtros button{border:1px solid var(--borde-suave);background:transparent;padding:5px 10px;cursor:pointer;font-weight:600;color:var(--muted)}
+  .filtros button.on{border-color:var(--oro);color:var(--oro)}
+  .nota{font-size:12.5px;color:var(--muted);border-left:3px solid var(--oro);padding:6px 10px;background:var(--cel-2)}
+  .msg td:first-child{width:90px}
+</style>
+{% endblock %}
+{% block cuerpo %}
+<main>
+  <section id="h-comp" style="display:flex;flex-direction:column;gap:10px">
+    <div class="kpis" id="k-comp"></div>
+    <div class="filtros" id="filtros"></div>
+    <div class="tabla"><table><thead><tr><th>Comprobante</th><th>Local</th><th>Hora</th><th>Pago</th><th class="r">Total</th><th>Estado SUNAT</th></tr></thead>
+      <tbody id="comp"></tbody></table></div>
+  </section>
+
+  <section id="h-sire" hidden style="display:flex;flex-direction:column;gap:10px">
+    <p class="nota">Vista de ejemplo. Compara lo que registra el sistema con la propuesta del SIRE antes de aceptarla, para encontrar diferencias a tiempo.</p>
+    <div class="tabla"><table>
+      <thead><tr><th>Registro · periodo 10/2026</th><th class="r">En el sistema</th><th class="r">Propuesta SUNAT</th><th class="r">Diferencia</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>Ventas · comprobantes</td><td class="r num">3,412</td><td class="r num">3,410</td><td class="r num" style="color:var(--rojo-txt)">2</td><td><span class="chip oro">Revisar 2 boletas</span></td></tr>
+        <tr><td>Ventas · base imponible</td><td class="r num">S/ 198,430.50</td><td class="r num">S/ 198,362.50</td><td class="r num" style="color:var(--rojo-txt)">S/ 68.00</td><td><span class="chip oro">Revisar</span></td></tr>
+        <tr><td>Compras · facturas de proveedores</td><td class="r num">146</td><td class="r num">151</td><td class="r num" style="color:var(--rojo-txt)">5</td><td><span class="chip oro">5 no registradas</span></td></tr>
+        <tr><td>Compras · crédito fiscal</td><td class="r num">S/ 14,920.10</td><td class="r num">S/ 15,388.40</td><td class="r num" style="color:var(--ok)">S/ 468.30</td><td><span class="chip verde">A favor si se registran</span></td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section id="h-sunat" hidden style="display:flex;flex-direction:column;gap:10px">
+    <p class="nota">Vista de ejemplo. El buzón SOL se revisa solo cada día y avisa por WhatsApp cuando llega algo nuevo (servicio alerta.pe de Perú Sistemas Pro).</p>
+    <div class="tabla"><table class="msg"><thead><tr><th>Fecha</th><th>Asunto</th><th>Estado</th></tr></thead><tbody>
+      <tr><td class="num">01/11</td><td>Constancia de presentación · Declaración mensual 10/2026</td><td><span class="chip verde">Nuevo</span></td></tr>
+      <tr><td class="num">28/10</td><td>Comunicación · Cronograma de obligaciones mensuales 2027</td><td><span class="chip gris">Leído</span></td></tr>
+      <tr><td class="num">21/10</td><td>Esquela · Inconsistencia en comprobantes emitidos (aviso preventivo)</td><td><span class="chip rojo">Requiere respuesta</span></td></tr>
+      <tr><td class="num">15/10</td><td>Constancia de presentación · PLAME 09/2026</td><td><span class="chip gris">Leído</span></td></tr>
+    </tbody></table></div>
+  </section>
+
+  <section id="h-sunafil" hidden style="display:flex;flex-direction:column;gap:10px">
+    <p class="nota">Cruce real con la demo: personal que marca asistencia pero no tiene alta en T-Registro. Es el primer punto que revisa una inspección laboral. Las notificaciones de la casilla SUNAFIL son una vista de ejemplo.</p>
+    <section class="hoja"><div class="cab">Asistencia sin alta en T-Registro <span id="n-treg"></span></div>
+      <div class="tabla" style="border:none"><table><thead><tr><th>Trabajador</th><th>Local</th><th>Puesto</th><th>Trabaja desde</th><th class="r">Días con asistencia</th></tr></thead><tbody id="treg"></tbody></table></div></section>
+    <div class="tabla"><table class="msg"><thead><tr><th>Fecha</th><th>Casilla electrónica SUNAFIL</th><th>Estado</th></tr></thead><tbody>
+      <tr><td class="num">—</td><td>Sin notificaciones nuevas este mes</td><td><span class="chip verde">Al día</span></td></tr>
+    </tbody></table></div>
+  </section>
+</main>
+<nav class="libro" aria-label="Hojas">
+  <button class="on" data-h="comp">Comprobantes</button><button data-h="sire">SIRE</button>
+  <button data-h="sunat">Buzón SUNAT</button><button data-h="sunafil">SUNAFIL</button>
+</nav>
+{% endblock %}
+{% block script %}
+<script>
+const $ = id => document.getElementById(id);
+let filtro = "todos";
+const EST = { aceptado: ["Aceptado", "verde"], rechazado: ["Rechazado", "rojo"], enviando: ["En envío", "oro"] };
+function pintar(st) {
+  const cs = st.comprobantes, cuenta = e => cs.filter(c => c.comp_estado === e).length;
+  $("k-comp").innerHTML = `<div class="kpi"><span class="etq">Emitidos hoy</span><b>${cs.length}</b></div>
+    <div class="kpi"><span class="etq">Aceptados</span><b style="color:var(--ok)">${cuenta("aceptado")}</b></div>
+    <div class="kpi"><span class="etq">Rechazados</span><b style="color:var(--rojo-txt)">${cuenta("rechazado")}</b></div>
+    <div class="kpi"><span class="etq">En envío</span><b style="color:var(--oro)">${cuenta("enviando")}</b></div>`;
+  $("filtros").innerHTML = [["todos", "Todos"], ["rechazado", "Rechazados"], ["enviando", "En envío"], ["aceptado", "Aceptados"]]
+    .map(([k, t]) => `<button class="${filtro === k ? "on" : ""}" data-f="${k}">${t}</button>`).join("");
+  const lista = cs.filter(c => filtro === "todos" || c.comp_estado === filtro).slice(0, 60);
+  $("comp").innerHTML = lista.map(c => `<tr><td class="num">${c.comprobante}</td><td>${Demo.esc(c.local)}</td><td class="num">${Demo.hora(c.pagado)}</td>
+    <td>${Demo.metodo(c.metodo)}</td><td class="r num">${Demo.fmtS(c.total)}</td><td><span class="chip ${EST[c.comp_estado][1]}">${EST[c.comp_estado][0]}</span></td></tr>`).join("")
+    || `<tr><td colspan="6" class="muted" style="text-align:center">Sin comprobantes con ese estado.</td></tr>`;
+  const sin = st.locales.flatMap(l => l.personal.filter(p => !p.t_registro).map(p => ({ ...p, local: l.nombre })));
+  $("n-treg").textContent = sin.length ? `${sin.length} trabajador(es)` : "";
+  $("treg").innerHTML = sin.map(p => `<tr><td><b>${Demo.esc(p.nombre)}</b></td><td>${p.local}</td><td>${Demo.esc(p.puesto)}</td><td class="num">${Demo.fecha(p.desde)}</td><td class="r num">${p.dias}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="muted" style="text-align:center">Todo el personal tiene alta.</td></tr>`;
+}
+$("filtros").onclick = e => { const b = e.target.closest("button"); if (b) { filtro = b.dataset.f; pintar(Demo.estado); } };
+document.querySelector(".libro").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll(".libro button").forEach(x => x.classList.toggle("on", x === b));
+  ["comp", "sire", "sunat", "sunafil"].forEach(h => $("h-" + h).hidden = h !== b.dataset.h);
+};
+Demo.alCambiar(pintar);
+Demo.conectar(ev => { if (ev.tipo === "cobrar") Demo.aviso(ev.texto); });
+</script>
+{% endblock %}

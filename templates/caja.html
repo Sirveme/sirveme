@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}Caja · Metraes{% endblock %}
+{% block rol %}Caja y delivery{% endblock %}
+{% block locales %}{% include "_locales.html" %}{% endblock %}
+{% block contexto %}<b>Aquí se cobra.</b> Los pedidos que cocina marca como listos llegan solos. Los delivery salen con el repartidor y se cobran al entregarse. Al cobrar se emite la boleta electrónica y la venta aparece al instante en el panel de los dueños.{% endblock %}
+{% block estilos %}
+<style>
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .ped{display:flex;flex-direction:column;gap:6px;padding:9px 10px;border-bottom:1px solid var(--borde-suave)}
+  .ped:last-child{border-bottom:none}
+  .ped .l1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .ped .l1 b.num{font-size:15px}
+  .ped .det{font-size:12px;color:var(--muted)}
+  .ped .acc{display:flex;gap:6px;flex-wrap:wrap}
+  .ped .acc .btn{flex:1}
+  @media (max-width:860px){ .cols{grid-template-columns:1fr} }
+</style>
+{% endblock %}
+{% block cuerpo %}
+<main>
+  <section class="kpis" aria-label="Caja de hoy">
+    <div class="kpi"><span class="etq">Ventas de hoy</span><b id="k-v">S/ 0.00</b></div>
+    <div class="kpi"><span class="etq">Efectivo</span><b id="k-e">S/ 0.00</b></div>
+    <div class="kpi"><span class="etq">Yape / Plin</span><b id="k-y">S/ 0.00</b></div>
+    <div class="kpi"><span class="etq">Tarjeta</span><b id="k-t">S/ 0.00</b></div>
+    <div class="kpi"><span class="etq">En cocina</span><b id="k-c">0</b></div>
+  </section>
+  <div class="cols">
+    <section class="hoja"><div class="cab">Por cobrar <span id="n-cob" class="num"></span></div><div id="cobrar"></div></section>
+    <section class="hoja"><div class="cab">Delivery <span id="n-del" class="num"></span></div><div id="delivery"></div></section>
+  </div>
+  <section class="hoja"><div class="cab">Últimos cobros</div>
+    <div class="tabla" style="border:none"><table>
+      <thead><tr><th>Hora</th><th>Pedido</th><th>Boleta</th><th>Pago</th><th class="r">Total</th></tr></thead>
+      <tbody id="cobros"></tbody></table></div></section>
+</main>
+{% endblock %}
+{% block script %}
+<script>
+const $ = id => document.getElementById(id);
+const pagos = `<div class="acc"><button class="btn pri" data-m="efectivo">Efectivo</button><button class="btn pri" data-m="yape" title="Con pagoOK el Yape/Plin se confirma solo">Yape/Plin</button><button class="btn pri" data-m="tarjeta">Tarjeta</button></div>`;
+function fila(p, acciones, nota = "") {
+  return `<div class="ped" data-id="${p.id}"><div class="l1"><b>${p.numero} · ${Demo.esc(Demo.donde(p))}</b><b class="num">${Demo.fmtS(p.total)}</b></div>
+    <span class="det">${p.items.map(i => `${i.cant} ${Demo.esc(i.nombre)}`).join(" · ")}${nota}</span>${acciones}</div>`;
+}
+function pintar(st, previo) {
+  const l = Demo.local(LOCAL_ID), a = previo?.locales.find(x => x.id === LOCAL_ID);
+  [["k-v", l.ventas, a?.ventas], ["k-e", l.por_metodo.efectivo, a?.por_metodo.efectivo], ["k-y", l.por_metodo.yape, a?.por_metodo.yape],
+   ["k-t", l.por_metodo.tarjeta, a?.por_metodo.tarjeta]].forEach(([id, v, ant]) => { $(id).textContent = Demo.fmtS(v); Demo.destello($(id), ant, v); });
+  $("k-c").textContent = l.en_cocina; Demo.destello($("k-c"), a?.en_cocina, l.en_cocina);
+  const cob = l.pedidos.filter(p => p.estado === "listo" && p.tipo !== "delivery");
+  const del = l.pedidos.filter(p => p.tipo === "delivery" && ["cocina", "listo", "en_camino"].includes(p.estado));
+  $("n-cob").textContent = cob.length || ""; $("n-del").textContent = del.length || "";
+  $("cobrar").innerHTML = cob.length ? cob.map(p => fila(p, pagos)).join("") : `<p class="vacio" style="margin:10px">Nada por cobrar. Cuando cocina marque un pedido como listo, aparece aquí.</p>`;
+  $("delivery").innerHTML = del.length ? del.map(p => {
+    const dir = ` · ${Demo.esc(p.direccion || "")}`;
+    if (p.estado === "cocina") return fila(p, `<span class="chip oro">En cocina</span>`, dir);
+    if (p.estado === "listo") return fila(p, `<div class="acc"><button class="btn oro" data-a="despachar"><svg class="ic"><use href="#i-moto"/></svg>Enviar con repartidor</button></div>`, dir);
+    return fila(p, `<span class="chip azul">En camino · salió ${Demo.hora(p.despachado)}</span>${pagos.replace(/data-m/g, 'data-e data-m')}`, dir);
+  }).join("") : `<p class="vacio" style="margin:10px">Sin delivery pendiente.</p>`;
+  const hechos = l.pedidos.filter(p => p.estado === "pagado").sort((x, y) => y.pagado.localeCompare(x.pagado)).slice(0, 8);
+  $("cobros").innerHTML = hechos.map(p => `<tr><td class="num">${Demo.hora(p.pagado)}</td><td>${p.numero} · ${Demo.esc(Demo.donde(p))}</td>
+    <td class="num">${p.comprobante}</td><td>${Demo.metodo(p.metodo)}</td><td class="r num">${Demo.fmtS(p.total)}</td></tr>`).join("");
+}
+document.querySelector("main").addEventListener("click", async e => {
+  const b = e.target.closest(".btn[data-m], .btn[data-a]"); if (!b) return;
+  const id = b.closest(".ped").dataset.id;
+  b.closest(".ped").querySelectorAll(".btn").forEach(x => x.disabled = true);
+  try {
+    if (b.dataset.a) await Demo.post(`/api/pedidos/${id}/despachar`);
+    else await Demo.post(`/api/pedidos/${id}/cobrar`, { metodo: b.dataset.m });
+  } catch (err) { Demo.aviso(err.message, "rojo"); b.closest(".ped").querySelectorAll(".btn").forEach(x => x.disabled = false); }
+});
+Demo.alCambiar(pintar);
+Demo.conectar(ev => {
+  if (ev.local_id !== LOCAL_ID && ev.tipo !== "reinicio") return;
+  if (ev.tipo === "listo") Demo.aviso(ev.texto, "oro");
+  if (ev.tipo === "cobrar") Demo.aviso(ev.texto);
+  if (ev.tipo === "reinicio") Demo.aviso(ev.texto, "azul");
+});
+</script>
+{% endblock %}

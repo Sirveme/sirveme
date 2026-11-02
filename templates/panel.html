@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Vista en paralelo · Metraes{% endblock %}
+{% block rol %}Vista en paralelo · Local A{% endblock %}
+{% block contexto %}Mozo, cocina y caja del Local A junto al panel de los dueños. Envíe un pedido desde el mozo y siga su recorrido.{% endblock %}
+{% block estilos %}
+<style>
+  html,body{height:100%}
+  body{display:flex;flex-direction:column}
+  body::after{display:none}
+  #vivo{display:none}
+  .marcos{flex:1;display:grid;grid-template-columns:380px 1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px;min-height:0}
+  .marco{display:flex;flex-direction:column;border:1px solid var(--borde);overflow:hidden;background:var(--cel);min-height:0}
+  .marco span{background:var(--hd);color:var(--hd-fg);font-family:var(--f-mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;padding:4px 8px}
+  .marco iframe{flex:1;border:0;width:100%;background:var(--bg)}
+  .mo{grid-row:1/3}.co{grid-column:2;grid-row:1}.ca{grid-column:2;grid-row:2}.du{grid-column:3;grid-row:1/3}
+  .aviso-ancho{display:none;padding:16px;color:var(--muted)}
+  @media (max-width:1100px){ .marcos{display:none} .aviso-ancho{display:block} }
+</style>
+{% endblock %}
+{% block cuerpo %}
+<div class="marcos">
+  <div class="marco mo"><span>Mozo · Local A</span><iframe src="/mozo?l=1&embebido=1" title="Mozo"></iframe></div>
+  <div class="marco co"><span>Cocina · Local A</span><iframe src="/cocina?l=1&embebido=1" title="Cocina"></iframe></div>
+  <div class="marco ca"><span>Caja · Local A</span><iframe src="/caja?l=1&embebido=1" title="Caja"></iframe></div>
+  <div class="marco du"><span>Dueños</span><iframe src="/duenos?embebido=1" title="Dueños"></iframe></div>
+</div>
+<p class="aviso-ancho">Esta vista necesita una pantalla de computadora. En el celular, abra cada rol por separado desde <a href="/" style="color:var(--oro)">Roles</a>.</p>
+{% endblock %}

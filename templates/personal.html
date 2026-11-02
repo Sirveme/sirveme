@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titulo %}Personal · Metraes{% endblock %}
+{% block rol %}Personal · Asistencia{% endblock %}
+{% block locales %}{% include "_locales.html" %}{% endblock %}
+{% block contexto %}<b>Marcación de entrada y salida.</b> En el local, cada trabajador marca con su PIN o con el código del local; en esta demo basta tocar el botón. Cada marcación suma a su liquidación y el dueño ve al instante quién asistió y cuánto se le debe.{% endblock %}
+{% block cuerpo %}
+<main style="max-width:900px">
+  <div class="tabla"><table>
+    <thead><tr><th>Trabajador</th><th>Entrada</th><th>Salida</th><th class="r" title="Días trabajados desde el último pago × jornal − adelantos">Se le debe</th><th></th></tr></thead>
+    <tbody id="lista"></tbody></table></div>
+  <p class="muted" style="margin:0;font-size:12.5px">"Se le debe" = días trabajados desde su último pago × jornal − adelantos. Los pagos se registran en el panel de los dueños.</p>
+</main>
+{% endblock %}
+{% block script %}
+<script>
+const $ = id => document.getElementById(id);
+function pintar(st, previo) {
+  const l = Demo.local(LOCAL_ID), a = previo?.locales.find(x => x.id === LOCAL_ID);
+  $("lista").innerHTML = l.personal.map(p => {
+    const accion = !p.entrada ? `<button class="btn pri chico" data-id="${p.id}">Marcar entrada</button>`
+      : !p.salida ? `<button class="btn chico" data-id="${p.id}">Marcar salida</button>` : `<span class="chip gris">Turno cerrado</span>`;
+    return `<tr><td><b>${Demo.esc(p.nombre)}</b><br><span class="muted" style="font-size:12px">${Demo.esc(p.puesto)} · ${Demo.fmtS(p.jornal)}/día</span></td>
+      <td class="num">${p.entrada ? Demo.hora(p.entrada) : `<span class="chip oro">Sin marcar</span>`}</td>
+      <td class="num">${Demo.hora(p.salida)}</td>
+      <td class="r num" data-k="${p.id}">${Demo.fmtS(p.por_pagar)}</td><td>${accion}</td></tr>`;
+  }).join("");
+  if (a) l.personal.forEach(p => Demo.destello(document.querySelector(`td[data-k="${p.id}"]`), a.personal.find(x => x.id === p.id)?.por_pagar, p.por_pagar));
+}
+$("lista").onclick = async e => {
+  const b = e.target.closest(".btn"); if (!b) return; b.disabled = true;
+  try { await Demo.post("/api/asistencia", { personal_id: +b.dataset.id }); }
+  catch (err) { Demo.aviso(err.message, "rojo"); b.disabled = false; }
+};
+Demo.alCambiar(pintar);
+Demo.conectar(ev => { if (ev.tipo === "asistencia" && ev.local_id === LOCAL_ID) Demo.aviso(ev.texto); if (ev.tipo === "reinicio") Demo.aviso(ev.texto, "azul"); });
+</script>
+{% endblock %}

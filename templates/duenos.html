@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block titulo %}Dueños · Metraes{% endblock %}
+{% block rol %}Panel de los dueños{% endblock %}
+{% block clase %}con-libro{% endblock %}
+{% block acciones %}<a class="volver" href="/contador{% if request.query_params.get('embebido') %}?embebido=1{% endif %}" title="Herramientas para el contador">Contador</a>{% endblock %}
+{% block contexto %}<b>Hola, {{ DUENOS }}.</b> Todos sus locales en una sola pantalla, al instante: cada cobro, cada plato que sale de cocina, cada marcación del personal. Use las hojas de abajo para ver la lista de compras, el personal y los insumos.{% endblock %}
+{% block estilos %}
+<style>
+  .resumen th:first-child,.resumen td:first-child{position:sticky;left:0;z-index:1}
+  .resumen td:first-child{background:var(--cel-2);font-weight:600;min-width:150px}
+  .resumen th{text-align:right} .resumen th:first-child{text-align:left}
+  .resumen td{text-align:right;min-width:120px}
+  .resumen td.txt{text-align:left;font-size:12.5px}
+  .resumen td:first-child{text-align:left}
+  .resumen tr.sec td{background:var(--cel-3)!important;color:var(--oro);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;font-weight:600}
+  .resumen td.tot{background:rgba(33,115,70,.12)}
+  .resumen th small{display:block;font-weight:400;font-size:11px;opacity:.8}
+  .sello{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .lista-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start}
+  .grid-compras{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start}
+  .pie-hoja{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--borde)}
+  .acc-per{display:flex;gap:4px;align-items:center}
+  .acc-per input{width:70px;padding:4px 6px}
+  td.bajo{color:var(--rojo-txt);font-weight:600}
+</style>
+{% endblock %}
+{% block cuerpo %}
+<main>
+  <div class="sello"><span>Hoy <span id="hoy"></span> · actualizado <span id="act" class="num"></span></span><span>Datos de ejemplo</span></div>
+
+  <section id="h-resumen">
+    <div class="tabla"><table class="resumen" id="resumen"></table></div>
+  </section>
+
+  <section id="h-compras" hidden style="display:flex;flex-direction:column;gap:10px">
+    <p class="muted" style="margin:0">Se arma sola con los insumos que bajaron del mínimo por las ventas del día. "Comprar" es lo que falta para llegar al stock ideal de cada local.</p>
+    <div class="grid-compras" id="compras"></div>
+  </section>
+
+  <section id="h-personal" hidden style="display:flex;flex-direction:column;gap:10px">
+    <div class="kpis" id="k-per"></div>
+    <div class="tabla"><table>
+      <thead><tr><th>Trabajador</th><th>Local</th><th>Desde</th><th class="r" title="Días que marcó asistencia desde su último pago">Días</th><th class="r">Faltas</th>
+        <th class="r">Jornal</th><th class="r">Adelantos</th><th class="r">Se le debe</th><th>Adelanto / pago</th></tr></thead>
+      <tbody id="personal"></tbody></table></div>
+    <p class="muted" style="margin:0;font-size:12.5px">"Se le debe" se calcula al momento: días trabajados desde su último pago × jornal − adelantos. Al pagar, el saldo vuelve a cero.</p>
+  </section>
+
+  <section id="h-insumos" hidden>
+    <div class="tabla"><table><thead id="ins-h"></thead><tbody id="insumos"></tbody></table></div>
+    <p style="display:flex;justify-content:flex-end;margin:10px 0 0"><button class="btn peligro chico" id="reiniciar" title="Vuelve a los datos iniciales de la demo">Reiniciar demo</button></p>
+  </section>
+</main>
+<nav class="libro" aria-label="Hojas">
+  <button class="on" data-h="resumen">Resumen</button>
+  <button data-h="compras"><svg class="ic"><use href="#i-carrito"/></svg>Lista de compras <span id="n-comp"></span></button>
+  <button data-h="personal">Personal</button>
+  <button data-h="insumos">Insumos</button>
+</nav>
+{% endblock %}
+{% block script %}
+<script>
+const $ = id => document.getElementById(id);
+const S = Demo.fmtS;
+function celda(v, txt, k) { return `<td class="num" data-k="${k}" data-v="${v}">${txt}</td>`; }
+function filaNum(nombre, key, fn, fmt = S, totFn = null) {
+  const L = Demo.estado.locales, vals = L.map(fn), tot = totFn ? totFn(L) : vals.reduce((a, b) => a + b, 0);
+  return `<tr><td>${nombre}</td>${vals.map((v, i) => celda(v, fmt(v), key + i)).join("")}${`<td class="num tot" data-k="${key}t" data-v="${tot}">${fmt(tot)}</td>`}</tr>`;
+}
+function filaTxt(nombre, fn, tot = "") {
+  return `<tr><td>${nombre}</td>${Demo.estado.locales.map(l => `<td class="txt">${fn(l)}</td>`).join("")}<td class="txt tot">${tot}</td></tr>`;
+}
+function pintarResumen(st, previo) {
+  const L = st.locales, sec = t => `<tr class="sec"><td colspan="5">${t}</td></tr>`;
+  const n = x => Demo.fmtN(x);
+  // plato top consolidado
+  const agg = {}; L.forEach(l => l.top.forEach(([nom, q]) => agg[nom] = (agg[nom] || 0) + q));
+  const topT = Object.entries(agg).sort((a, b) => b[1] - a[1])[0];
+  const cobrados = L.reduce((a, l) => a + l.atendidos, 0), ventas = L.reduce((a, l) => a + l.ventas, 0);
+  $("resumen").innerHTML = `<thead><tr><th>Concepto</th>${L.map(l => `<th>${l.nombre}<small>${Demo.esc(l.sub)}</small></th>`).join("")}<th>Total</th></tr></thead><tbody>
+    ${sec("Caja")}
+    ${filaNum("Ventas de hoy", "v", l => l.ventas)}
+    ${filaNum("Efectivo", "e", l => l.por_metodo.efectivo)}
+    ${filaNum("Yape / Plin", "y", l => l.por_metodo.yape)}
+    ${filaNum("Tarjeta", "t", l => l.por_metodo.tarjeta)}
+    ${filaNum("Pedidos cobrados", "c", l => l.atendidos, n)}
+    ${filaNum("Ticket promedio", "tp", l => l.ticket, S, () => cobrados ? ventas / cobrados : 0)}
+    ${filaNum("En cocina ahora", "k", l => l.en_cocina, n)}
+    ${filaNum("Por cobrar", "pc", l => l.por_cobrar)}
+    ${sec("Platos")}
+    ${filaTxt("Más vendido", l => l.top[0] ? `<b>${Demo.esc(l.top[0][0])}</b> × ${l.top[0][1]}` : "—", topT ? `<b>${Demo.esc(topT[0])}</b> × ${topT[1]}` : "")}
+    ${filaTxt("Siguientes", l => l.top.slice(1, 3).map(t => `${Demo.esc(t[0])} × ${t[1]}`).join("<br>") || "—")}
+    ${sec("Insumos")}
+    ${filaTxt("Consumidos hoy", l => l.consumo.slice(0, 3).map(c => `${Demo.esc(c[0])}: ${Demo.fmtQ(c[1], c[2])}`).join("<br>") || "—")}
+    ${filaNum("Costo de insumos usados", "ci", l => l.costo_insumos)}
+    ${filaTxt("Por agotarse", l => l.bajos.length ? `<span class="lista-chips">${l.bajos.map(b => `<span class="chip rojo" title="Queda ${Demo.fmtQ(b[1], b[3])} · mínimo ${Demo.fmtQ(b[2], b[3])}">${Demo.esc(b[0])}</span>`).join("")}</span>` : `<span class="chip verde">Todo en orden</span>`,
+      `${L.reduce((a, l) => a + l.bajos.length, 0)} insumo(s)`)}
+    ${sec("Personal")}
+    ${filaTxt("Asistieron hoy", l => `<b class="num">${l.asistieron} de ${l.total_personal}</b>${l.faltan.length ? `<br><span class="muted">Falta: ${l.faltan.map(Demo.esc).join(", ")}</span>` : ""}`,
+      `<b class="num">${L.reduce((a, l) => a + l.asistieron, 0)} de ${L.reduce((a, l) => a + l.total_personal, 0)}</b>`)}
+    ${filaNum("Se le debe al personal", "pp", l => l.por_pagar)}
+  </tbody>`;
+  if (previo) $("resumen").querySelectorAll("td[data-k]").forEach(td => {
+    const k = td.dataset.k, ant = window._prevVals?.[k]; Demo.destello(td, ant, +td.dataset.v);
+  });
+  window._prevVals = {}; $("resumen").querySelectorAll("td[data-k]").forEach(td => window._prevVals[td.dataset.k] = +td.dataset.v);
+}
+function pintarCompras(st) {
+  const total = st.locales.reduce((a, l) => a + l.compras.length, 0);
+  $("n-comp").textContent = total ? `(${total})` : "";
+  $("compras").innerHTML = st.locales.map(l => `<section class="hoja">
+    <div class="cab">${l.nombre}<span>${l.compras.length ? `${l.compras.length} insumo(s)` : "Sin faltantes"}</span></div>
+    ${l.compras.length ? `<div class="tabla" style="border:none"><table><thead><tr><th>Insumo</th><th class="r">Queda</th><th class="r">Comprar</th><th class="r">Costo est.</th></tr></thead><tbody>
+      ${l.compras.map(c => `<tr><td>${Demo.esc(c.insumo)}</td><td class="r num bajo">${Demo.fmtQ(c.queda, c.unidad)}</td><td class="r num"><b>${Demo.fmtQ(c.comprar, c.unidad)}</b></td><td class="r num">${S(c.costo)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="pie-hoja"><b class="num">Total ${S(l.compras.reduce((a, c) => a + c.costo, 0))}</b>
+        <span style="display:flex;gap:6px"><button class="btn chico" data-copiar="${l.id}"><svg class="ic"><use href="#i-copiar"/></svg>Copiar para el proveedor</button>
+        <button class="btn pri chico" data-comprar="${l.id}" title="Marca la compra como hecha y repone el stock al ideal">Registrar compra</button></span></div>`
+      : `<p class="vacio" style="margin:10px">Todos los insumos están sobre el mínimo.</p>`}
+  </section>`).join("");
+}
+function pintarPersonal(st) {
+  const L = st.locales;
+  $("k-per").innerHTML = L.map(l => `<div class="kpi"><span class="etq">${l.nombre} · se le debe</span><b>${S(l.por_pagar)}</b></div>`).join("")
+    + `<div class="kpi"><span class="etq">Total por pagar</span><b>${S(L.reduce((a, l) => a + l.por_pagar, 0))}</b></div>`;
+  $("personal").innerHTML = L.flatMap(l => l.personal.map(p => `<tr>
+    <td><b>${Demo.esc(p.nombre)}</b><br><span class="muted" style="font-size:12px">${Demo.esc(p.puesto)}</span>${p.t_registro ? "" : ` <span class="chip oro" title="Marca asistencia pero no tiene alta en T-Registro">Sin alta T-Registro</span>`}</td>
+    <td>${l.letra}</td><td class="num">${Demo.fecha(p.desde)}</td><td class="r num">${p.dias}</td>
+    <td class="r num ${p.faltas ? "bajo" : ""}">${p.faltas}</td><td class="r num">${S(p.jornal)}</td><td class="r num">${S(p.adelantos)}</td>
+    <td class="r num"><b>${S(p.por_pagar)}</b></td>
+    <td><span class="acc-per"><input type="number" min="1" placeholder="S/" aria-label="Monto del adelanto" data-in="${p.id}">
+      <button class="btn chico" data-adel="${p.id}">Adelanto</button><button class="btn oro chico" data-pagar="${p.id}" ${p.por_pagar > 0 ? "" : "disabled"}>Pagar</button></span></td></tr>`)).join("");
+}
+function pintarInsumos(st) {
+  const L = st.locales;
+  $("ins-h").innerHTML = `<tr><th>Insumo</th>${L.map(l => `<th class="r">${l.nombre}</th>`).join("")}</tr>`;
+  $("insumos").innerHTML = L[0].stock.map((s, i) => `<tr><td>${Demo.esc(s.insumo)}</td>${L.map(l => {
+    const x = l.stock[i], bajo = x.cant < x.minimo;
+    return `<td class="r num ${bajo ? "bajo" : ""}" title="Mínimo ${Demo.fmtQ(x.minimo, x.unidad)} · ideal ${Demo.fmtQ(x.objetivo, x.unidad)}">${Demo.fmtQ(x.cant, x.unidad)}</td>`;
+  }).join("")}</tr>`).join("");
+}
+let pagarConfirm = null;
+document.querySelector("main").addEventListener("click", async e => {
+  const b = e.target.closest(".btn"); if (!b) return;
+  try {
+    if (b.dataset.copiar) {
+      const l = Demo.local(b.dataset.copiar);
+      const txt = `Pedido de insumos · ${l.nombre} · ${Demo.fecha(Demo.estado.hoy)}\n` + l.compras.map(c => `- ${c.insumo}: ${Demo.fmtQ(c.comprar, c.unidad)}`).join("\n");
+      try { await navigator.clipboard.writeText(txt); Demo.aviso("Lista copiada. Pégala en el WhatsApp del proveedor."); }
+      catch { Demo.aviso(txt, "azul"); }
+    } else if (b.dataset.comprar) {
+      b.disabled = true; await Demo.post("/api/compras", { local_id: +b.dataset.comprar });
+    } else if (b.dataset.adel) {
+      const inp = document.querySelector(`input[data-in="${b.dataset.adel}"]`);
+      await Demo.post(`/api/personal/${b.dataset.adel}/pago`, { tipo: "adelanto", monto: inp.value });
+    } else if (b.dataset.pagar) {
+      if (pagarConfirm !== b.dataset.pagar) {
+        pagarConfirm = b.dataset.pagar; b.textContent = "¿Confirmar?";
+        setTimeout(() => { if (pagarConfirm === b.dataset.pagar) { pagarConfirm = null; b.textContent = "Pagar"; } }, 4000);
+        return;
+      }
+      pagarConfirm = null; await Demo.post(`/api/personal/${b.dataset.pagar}/pago`, { tipo: "liquidacion" });
+    }
+  } catch (err) { Demo.aviso(err.message, "rojo"); b.disabled = false; }
+});
+let resetConf = false;
+$("reiniciar").onclick = async () => {
+  if (!resetConf) { resetConf = true; $("reiniciar").textContent = "¿Seguro? Toca otra vez"; setTimeout(() => { resetConf = false; $("reiniciar").textContent = "Reiniciar demo"; }, 4000); return; }
+  resetConf = false; $("reiniciar").textContent = "Reiniciar demo"; window._prevVals = {};
+  try { await Demo.post("/api/reiniciar"); } catch (err) { Demo.aviso(err.message, "rojo"); }
+};
+document.querySelector(".libro").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll(".libro button").forEach(x => x.classList.toggle("on", x === b));
+  ["resumen", "compras", "personal", "insumos"].forEach(h => $("h-" + h).hidden = h !== b.dataset.h);
+  window.scrollTo(0, 0);
+};
+Demo.alCambiar((st, previo) => {
+  $("hoy").textContent = Demo.fecha(st.hoy); $("act").textContent = new Date().toLocaleTimeString("es-PE", { timeZone: "America/Lima" });
+  pintarResumen(st, previo); pintarCompras(st); pintarPersonal(st); pintarInsumos(st);
+});
+Demo.conectar(ev => {
+  const tipos = { cobrar: "", pedido_nuevo: "oro", compra: "azul", pago: "azul", asistencia: "" };
+  if (ev.tipo in tipos) Demo.aviso(ev.texto, tipos[ev.tipo]);
+  if (ev.tipo === "reinicio") Demo.aviso(ev.texto, "azul");
+});
+</script>
+{% endblock %}

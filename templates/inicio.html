@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block titulo %}Metraes · Demo {{ NEGOCIO }}{% endblock %}
+{% block barra %}{% endblock %}
+{% block estilos %}
+<style>
+  .hero{display:flex;flex-direction:column;gap:6px;max-width:64ch}
+  .hero .etq{color:var(--oro)}
+  .hero h1{font-size:clamp(22px,4vw,30px);line-height:1.15}
+  .flujo{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .flujo span{border:1px solid var(--borde);padding:3px 8px;color:var(--fg)}
+  .roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));border-left:1px solid var(--borde);border-top:1px solid var(--borde)}
+  .rolc{display:flex;flex-direction:column;gap:4px;padding:12px;border-right:1px solid var(--borde);border-bottom:1px solid var(--borde);
+    background:var(--cel);text-decoration:none;color:inherit}
+  .rolc:hover,.rolc:focus-visible{background:var(--cel-3);outline:none}
+  .rolc b{font-size:15px;display:flex;align-items:center;justify-content:space-between}
+  .rolc span{font-size:13px;color:var(--muted)}
+  .rolc .etq{color:var(--ok)}
+  .rolc.dest{background:var(--cel-3)} .rolc.dest .etq{color:var(--oro)}
+  .tip{font-size:12.5px;color:var(--muted);border-left:3px solid var(--oro);padding:6px 10px;background:var(--cel-2);margin:0}
+</style>
+{% endblock %}
+{% block cuerpo %}
+<main>
+  <section class="hero">
+    <span class="etq">Metraes · Perú Sistemas Pro · Demo para {{ NEGOCIO }}</span>
+    <h1>Sus locales, en tiempo real</h1>
+    <p class="muted" style="margin:0">Abra cada rol en un celular o pestaña distinta. Lo que pasa en uno aparece al instante en los demás, sin refrescar.</p>
+    <div class="flujo"><span>Mozo</span>→<span>Cocina</span>→<span>Caja / Delivery</span>→<span>Panel de dueños</span></div>
+  </section>
+  <nav class="roles" aria-label="Roles">
+    <a class="rolc dest" href="/duenos"><span class="etq">Para {{ DUENOS }}</span><b>Panel de dueños <svg class="ic"><use href="#i-flecha"/></svg></b><span>Local A, B y C: caja, platos, insumos, compras, asistencia y lo que se le debe al personal.</span></a>
+    <a class="rolc" href="/mozo?l=1"><span class="etq">Salón</span><b>Mozo <svg class="ic"><use href="#i-flecha"/></svg></b><span>Toma el pedido; los platos sin insumos aparecen como agotados.</span></a>
+    <a class="rolc" href="/cocina?l=1"><span class="etq">Cocina</span><b>Cocina <svg class="ic"><use href="#i-flecha"/></svg></b><span>Recibe los pedidos al instante y avisa cuando están listos.</span></a>
+    <a class="rolc" href="/caja?l=1"><span class="etq">Caja</span><b>Caja y delivery <svg class="ic"><use href="#i-flecha"/></svg></b><span>Cobra, envía delivery y emite la boleta.</span></a>
+    <a class="rolc" href="/personal?l=1"><span class="etq">Personal</span><b>Asistencia <svg class="ic"><use href="#i-flecha"/></svg></b><span>Marcación de entrada y salida del personal.</span></a>
+    <a class="rolc" href="/contador"><span class="etq">Contador</span><b>Herramientas del contador <svg class="ic"><use href="#i-flecha"/></svg></b><span>Comprobantes, SIRE, buzón SUNAT y SUNAFIL.</span></a>
+    <a class="rolc" href="/panel"><span class="etq">Para presentar</span><b>Vista en paralelo <svg class="ic"><use href="#i-flecha"/></svg></b><span>Mozo, cocina, caja y dueños en una pantalla de computadora.</span></a>
+  </nav>
+  <p class="tip">Carta, personal, stock y ventas son datos de ejemplo de un restaurante con tres locales.</p>
+  <p class="muted" style="margin:0;font-size:12.5px">Perú Sistemas Pro E.I.R.L. · Iquitos · WhatsApp 967 317 946</p>
+</main>
+{% endblock %}

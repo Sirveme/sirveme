@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}Cocina · Metraes{% endblock %}
+{% block rol %}Cocina{% endblock %}
+{% block locales %}{% include "_locales.html" %}{% endblock %}
+{% block acciones %}<button class="btn chico" id="sonido"><svg class="ic"><use href="#i-campana"/></svg> Activar avisos</button>{% endblock %}
+{% block contexto %}<b>Pantalla de cocina (TV o tablet).</b> Los pedidos llegan solos desde el mozo, del más antiguo al más nuevo. El color avisa la demora: dorado pasados 10 minutos, rojo pasados 20. Al marcar "Listo", el mozo y la caja reciben el aviso.{% endblock %}
+{% block estilos %}
+<style>
+  .kds{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;align-items:start}
+  .com{border:1px solid var(--borde);background:var(--cel);display:flex;flex-direction:column}
+  .com .cab{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 10px;background:var(--hd);color:var(--hd-fg);font-weight:600}
+  .com.t1 .cab{background:#8a6a10} .com.t2 .cab{background:#8f1d1d}
+  .com.nuevo{animation:llega 2.5s ease-out}
+  @keyframes llega{0%{box-shadow:0 0 0 3px var(--oro)}100%{box-shadow:0 0 0 0 transparent}}
+  .com .tipo{padding:5px 10px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--borde-suave)}
+  .com ul{list-style:none;margin:0;padding:6px 10px;display:flex;flex-direction:column;gap:4px}
+  .com li{display:flex;gap:8px;font-size:15px}
+  .com li b{font-family:var(--f-mono);min-width:24px;color:var(--oro)}
+  .com .btn{margin:8px 10px 10px}
+  .res{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .res b{color:var(--fg);font-family:var(--f-mono)}
+</style>
+{% endblock %}
+{% block cuerpo %}
+<main>
+  <div class="res"><span>En cocina: <b id="r-n">0</b></span><span>Despachados hoy: <b id="r-d">0</b></span><span>Tiempo promedio: <b id="r-t">—</b></span></div>
+  <div class="kds" id="kds"></div>
+</main>
+{% endblock %}
+{% block script %}
+<script>
+const $ = id => document.getElementById(id);
+const conSonido = Demo.botonSonido($("sonido"));
+const vistos = new Set(); let primera = true;
+function pintar() {
+  const l = Demo.local(LOCAL_ID); if (!l) return;
+  const ps = l.pedidos.filter(p => p.estado === "cocina");
+  const hechos = l.pedidos.filter(p => p.listo);
+  $("r-n").textContent = ps.length; $("r-d").textContent = hechos.length;
+  const prom = hechos.length ? hechos.reduce((a, p) => a + (new Date(p.listo) - new Date(p.creado)), 0) / hechos.length / 60000 : null;
+  $("r-t").textContent = prom === null ? "—" : `${Math.round(prom)} min`;
+  $("kds").innerHTML = ps.length ? ps.map(p => {
+    const m = Demo.minDesde(p.creado), nuevo = !primera && !vistos.has(p.id);
+    return `<article class="com ${m >= 20 ? "t2" : m >= 10 ? "t1" : ""} ${nuevo ? "nuevo" : ""}" data-id="${p.id}">
+      <div class="cab"><span>${p.numero}</span><span class="num" title="Minutos desde que llegó"><svg class="ic"><use href="#i-reloj"/></svg> ${m} min</span></div>
+      <div class="tipo">${Demo.esc(Demo.donde(p))} · ${Demo.esc(p.mozo)} · ${Demo.hora(p.creado)}</div>
+      <ul>${p.items.map(i => `<li><b>${i.cant}</b><span>${Demo.esc(i.nombre)}</span></li>`).join("")}</ul>
+      <button class="btn pri"><svg class="ic"><use href="#i-check"/></svg>Listo</button></article>`;
+  }).join("") : `<p class="vacio">No hay pedidos pendientes. Cuando el mozo envíe uno, aparece aquí con un aviso.</p>`;
+  ps.forEach(p => vistos.add(p.id)); primera = false;
+}
+$("kds").onclick = async e => {
+  const b = e.target.closest(".btn"); if (!b) return;
+  b.disabled = true;
+  try { await Demo.post(`/api/pedidos/${b.closest(".com").dataset.id}/listo`); }
+  catch (err) { Demo.aviso(err.message, "rojo"); b.disabled = false; }
+};
+setInterval(pintar, 20000);
+Demo.alCambiar(pintar);
+Demo.conectar(ev => {
+  if (ev.tipo === "pedido_nuevo" && ev.local_id === LOCAL_ID) { Demo.aviso("Nuevo pedido: " + ev.texto, "oro"); if (conSonido()) Demo.sonar(); }
+  if (ev.tipo === "reinicio") { vistos.clear(); primera = true; Demo.aviso(ev.texto, "azul"); }
+});
+</script>
+{% endblock %}
